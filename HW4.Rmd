@@ -1,0 +1,112 @@
+---
+title: "HW4"
+author: "Ozair Meghani"
+date: "4/27/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidyr)
+library(foreign)
+library(printr)
+```
+
+#12.6.1
+#problem 3
+#Those columns are abreviations of the countries, so it is repetitive to have the same information under three different columns. 
+```{r echo =FALSE}
+H1 <- who %>% 
+  gather(new_sp_m014:newrel_f65,key="key",
+         value = "cases",
+         na.rm =TRUE)
+
+H2<- select(H1,country,iso2,iso3) %>% 
+  distinct() %>% 
+  group_by(country)
+H2
+  
+```
+#12.6.1
+#Problem 4
+#For each country, year, and sex compute the total number of cases of TB. Make an informative visualisation of the data
+
+```{r echo =FALSE}
+
+H1 <- who %>%
+  gather(new_sp_m014:newrel_f65, key = "key", value = "cases", na.rm = TRUE)
+H2 <- H1 %>%  mutate(key = stringr::str_replace(key, "newrel", "new_rel"))
+H3 <- H2 %>% separate(key,c("new","type","sexage"),sep ="_") 
+H4 <- H3 %>% select(-new,-iso2,-iso3)
+H5 <- H4 %>% separate(sexage,c("sex","age"),sep =1)
+H6 <- H5 %>% group_by(country, year, sex) %>%
+  filter(year > 1995) %>%
+  summarise(cases = sum(cases)) %>%
+  unite(country_sex, country, sex, remove = FALSE) %>%
+  ggplot(aes(x = year, y = cases, group = country_sex, colour = sex)) +
+  geom_line()
+H6
+```
+
+#10.5.
+#Problem 5
+#What does tibble::enframe() do? When might you use it?
+# converts named atomic vectors or lists to two-column data frames. For unnamed vectors, the natural sequence is used as name column.
+```{r  results=FALSE}
+x <- c(1,2,3,5,6)
+enframe(x, name = "name", value = "value")
+enframe(c(a = 5, b = 7))
+```
+
+#Problem 3 - converting table 4 to table 6
+```{r echo=FALSE,include= TRUE,results='asis'}
+pew <- read.spss("pew.sav")
+pew <- as.data.frame(pew)
+
+
+rel <- pew[c("q16", "reltrad", "income")]
+rel$reltrad <- as.character(rel$reltrad)
+rel$reltrad <- str_replace(rel$reltrad, " Churches", "")
+rel$reltrad <- str_replace(rel$reltrad, " Protestant", " Prot")
+rel$reltrad[rel$q16 == " Atheist (do not believe in God) "] <- "Atheist"
+rel$reltrad[rel$q16 == " Agnostic (not sure if there is a God) "] <- "Agnostic"
+rel$reltrad <- str_trim(rel$reltrad)
+rel$reltrad <- str_replace_all(rel$reltrad, " \\(.*?\\)", "")
+
+rel$income <- c("Less than $10,000" = "<$10k", 
+                     "10 to under $20,000" = "$10-20k", 
+                     "20 to under $30,000" = "$20-30k", 
+                     "30 to under $40,000" = "$30-40k", 
+                     "40 to under $50,000" = "$40-50k", 
+                     "50 to under $75,000" = "$50-75k",
+                     "75 to under $100,000" = "$75-100k", 
+                     "100 to under $150,000" = "$100-150k", 
+                     "$150,000 or more" = ">150k", 
+                     "Don't know/Refused (VOL)" = "Don't know/refused")[rel$income]
+
+rel$income <- factor(rel$income, levels = c("<$10k", "$10-20k", "$20-30k", "$30-40k", "$40-50k", "$50-75k", 
+                                                      "$75-100k", "$100-150k", ">150k", "Don't know/refused"))
+
+clean_Table <- rel %>% group_by(reltrad,income)%>% summarise(count=n())
+clean_Table<- as.data.frame(clean_Table)
+head(clean_Table,n=10)
+```
+
+#**4.convert table 7 to table 8**
+```{r echo=FALSE,Include=TRUE,results='asis'}
+bill <-read_csv("billboard.csv")
+bill.1 <- bill%>% gather(key="week", value ="rank", -year, -artist.inverted, -track, -time, -genre, -date.entered, -date.peaked)%>% 
+select(year, artist=artist.inverted, time, track, date=date.entered, week, rank)%>% 
+arrange(track)%>% 
+filter(!is.na(rank))%>% 
+separate(week, into=c("A", "week", "C"), sep=c(1, -8), convert=TRUE)%>% 
+select(-A, -C)%>% 
+filter(!is.na(week))%>% 
+arrange(artist, track)%>% 
+mutate(date = date+(week-1)*7)%>% 
+mutate(rank = as.numeric(rank))
+bill.2 <- as.data.frame(bill.1)
+head(bill.2,10)
+
+```
